@@ -1,0 +1,20 @@
+schema: '2.0'
+stages:
+  ingest:
+    cmd: python pipelines/ingest.py --src data/raw_docs --out data/clean_docs
+    deps:
+    - path: data/raw_docs
+      hash: md5
+      md5: b90aeed8430da0392ebd0d4ed2834b38.dir
+      size: 21087
+      nfiles: 6
+    - path: pipelines/ingest.py
+      hash: md5
+      md5: 3a05e523eab159344ea7edaef9e9c1d8
+      size: 814
+    outs:
+    - path: data/clean_docs
+      hash: md5
+      md5: 2142a6382334e846bf4b89dd94d28d13.dir
+      size: 28971
+      nfiles: 76
