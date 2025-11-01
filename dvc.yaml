@@ -11,3 +11,12 @@ stages:
     - data/clean_docs
     outs:
     - data/embeddings.parquet
+  eval:
+    cmd: python pipelines/eval.py --q data/eval/questions.jsonl --out 
+      metrics.json
+    deps:
+    - pipelines/eval.py
+    - data/eval/questions.jsonl
+    - data/embeddings.parquet
+    metrics:
+    - metrics.json
