@@ -18,3 +18,21 @@ stages:
       md5: 2142a6382334e846bf4b89dd94d28d13.dir
       size: 28971
       nfiles: 76
+  embed:
+    cmd: python pipelines/embed.py --inp data/clean_docs --out 
+      data/embeddings.parquet
+    deps:
+    - path: data/clean_docs
+      hash: md5
+      md5: 2142a6382334e846bf4b89dd94d28d13.dir
+      size: 28971
+      nfiles: 76
+    - path: pipelines/embed.py
+      hash: md5
+      md5: fdbda0e02101d71e5c4d26bc24ceb329
+      size: 650
+    outs:
+    - path: data/embeddings.parquet
+      hash: md5
+      md5: aed9a7d255a1c16cda26bcfdcd8ec9f6
+      size: 248503

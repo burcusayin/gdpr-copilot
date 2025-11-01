@@ -73,6 +73,7 @@ platformdirs==4.5.0
 prompt_toolkit==3.0.52
 propcache==0.4.1
 psutil==7.1.2
+pyarrow==22.0.0
 pycparser==2.23
 pydantic==2.8.2
 pydantic-settings==2.11.0
