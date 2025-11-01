@@ -25,7 +25,9 @@ for q in queries:
     rel=any(any(ans.lower() in t.lower() for ans in q["answers"]) for t in texts)
     rec.append(1.0 if rel else 0.0)
     
-metrics={"recall@{}".format(a.topk): float(np.mean(rec))}
+metric_key = f"recall_at_{a.topk}"
+metrics = {metric_key: float(np.mean(rec))}
+
 
 with mlflow.start_run():
     for k,v in metrics.items(): 
