@@ -1,0 +1,5 @@
+stages:
+  ingest:
+    cmd: python pipelines/ingest.py --src data/raw_docs --out data/clean_docs
+    deps: [pipelines/ingest.py, data/raw_docs]
+    outs: [data/clean_docs]
