@@ -1,23 +1,28 @@
+# app/main.py
 import os, mlflow.pyfunc
 from fastapi import FastAPI
 from pydantic import BaseModel
 
 app = FastAPI(title="GDPR Copilot")
-MODEL_URI = os.getenv("MODEL_URI","models:/rag_pipeline/Production")
-rag = None
+
+MODEL_URI = os.getenv("MODEL_URI", "models:/rag_pipeline/Production")
+rag = None  # will be loaded on first use
 
 class QueryIn(BaseModel):
     question: str
 
-@app.on_event("startup")
-def _load():
+def _get_model():
     global rag
-    rag = mlflow.pyfunc.load_model(MODEL_URI)
+    if rag is None:
+        rag = mlflow.pyfunc.load_model(MODEL_URI)
+    return rag
 
 @app.get("/healthz")
 def health():
-    return {"ok": True, "model": MODEL_URI}
+    # Don't force model load here; keep it lightweight
+    return {"ok": True, "model": MODEL_URI if rag is not None else None}
 
 @app.post("/query")
 def query(q: QueryIn):
-    return rag.predict({"question": q.question})
+    model = _get_model()
+    return model.predict({"question": q.question})
