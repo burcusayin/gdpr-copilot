@@ -16,6 +16,7 @@ A preliminary app for real-world, production-minded RAG service:
 - [Prerequisites](#prerequisites)
 - [Project layout](#project-layout)
 - [Quickstart (local)](#quickstart-local)
+- [Quickstart (cloud demo)](#quickstart-cloud)
 - [Detailed steps](#detailed-steps)
 - [Common commands](#common-commands)
 - [Environment variables](#environment-variables)
@@ -70,6 +71,8 @@ Optional (for cloud):
 ├── scripts/
 │   ├── register_and_promote.py # one-off MLflow registrar (sets alias)
 │   └── smoke.sh                # local health + sample query
+│   └── upload_to_qdrant.py     # one-off uploader to Qdrant Cloud
+
 ├── data/
 │   ├── raw_docs/               # source GDPR snippets/articles
 │   ├── clean_docs/             # cleaned text
@@ -107,6 +110,36 @@ curl -s http://localhost:8080/healthz
 curl -s -X POST http://localhost:8080/query -H 'Content-Type: application/json' \
   -d '{"question":"What are the data processing principles?"}'
 ```
+
+---
+
+## Quickstart (cloud demo)
+
+This runs the API locally while using **Qdrant Cloud** for vectors (and optionally DagsHub for MLflow).
+
+```bash
+# 1) Point indexing to Qdrant Cloud
+export QDRANT_URL="https://<your-qdrant-cloud-url>"   # copy exactly from Qdrant Cloud
+export QDRANT_API_KEY="<your-api-key>"
+export QDRANT_COLLECTION="gdpr_collection"
+
+# 2A) Index via DVC (recommended)
+dvc repro dvc.yaml:index
+
+# (alternative) 2B) One-off uploader (if you prefer a direct push)
+python scripts/upload_to_qdrant.py
+
+# 3) Run the API pointing at Qdrant Cloud
+# in docker-compose.yml under app.environment:
+# - QDRANT_URL=https://<your-qdrant-cloud-url>
+# - QDRANT_API_KEY=<your-api-key>
+# - QDRANT_COLLECTION=gdpr_collection
+docker compose up -d --force-recreate app
+
+# 4) Smoke test
+curl -s http://localhost:8080/healthz
+curl -s -X POST http://localhost:8080/query -H 'Content-Type: application/json' \
+  -d '{"question":"What are the data processing principles?"}'
 
 ---
 
