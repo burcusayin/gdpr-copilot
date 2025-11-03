@@ -6,3 +6,5 @@ mlruns/
 artifacts/
 .qdrant/
 /metrics.json
+.env
+*.env
