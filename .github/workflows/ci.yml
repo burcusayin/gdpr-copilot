@@ -38,8 +38,43 @@ jobs:
           QDRANT_COLLECTION=gdpr_collection
           TOKENIZERS_PARALLELISM=false
           EOF
+
+      - name: Register model to DagsHub (inside image)
+        env:
+          MLFLOW_TRACKING_URI: ${{ secrets.MLFLOW_TRACKING_URI }}
+          MLFLOW_TRACKING_USERNAME: ${{ secrets.MLFLOW_TRACKING_USERNAME }}
+          MLFLOW_TRACKING_PASSWORD: ${{ secrets.MLFLOW_TRACKING_PASSWORD }}
+        run: |
+          set -euxo pipefail
+          docker run --rm \
+            -e MLFLOW_TRACKING_URI -e MLFLOW_TRACKING_USERNAME -e MLFLOW_TRACKING_PASSWORD \
+            gdpr-copilot:${{ github.sha }} \
+            python scripts/register_and_promote.py
+      
       - name: Up with compose
         run: docker compose up -d app
+
+      - name: Preflight — MLflow alias on DagsHub
+        env:
+          MLFLOW_TRACKING_URI: ${{ secrets.MLFLOW_TRACKING_URI }}
+          MLFLOW_TRACKING_USERNAME: ${{ secrets.MLFLOW_TRACKING_USERNAME }}
+          MLFLOW_TRACKING_PASSWORD: ${{ secrets.MLFLOW_TRACKING_PASSWORD }}
+        run: |
+          set -euxo pipefail
+          RESP=$(curl -sS -u "$MLFLOW_TRACKING_USERNAME:$MLFLOW_TRACKING_PASSWORD" \
+            -H 'Content-Type: application/json' \
+            -d '{"name":"rag_pipeline_py311","alias":"prod"}' \
+            "$MLFLOW_TRACKING_URI/api/2.0/mlflow/model-versions/get-by-alias")
+          echo "$RESP" | grep -q '"name"' || { echo "Alias not found or auth failed"; echo "$RESP"; exit 2; }
+
+      - name: Preflight — Qdrant connectivity
+        env:
+          QDRANT_URL: ${{ secrets.QDRANT_URL }}
+          QDRANT_API_KEY: ${{ secrets.QDRANT_API_KEY }}
+        run: |
+          set -euxo pipefail
+          curl -sS -H "api-key: $QDRANT_API_KEY" "$QDRANT_URL/collections" | tee /tmp/qdrant.json
+          grep -q '"status":"ok"' /tmp/qdrant.json || { echo "Qdrant not reachable"; cat /tmp/qdrant.json; exit 3; }
 
       - name: Run container
         env:
