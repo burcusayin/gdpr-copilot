@@ -2,6 +2,8 @@
 import os, mlflow.pyfunc
 from fastapi import FastAPI
 from pydantic import BaseModel
+from fastapi.responses import JSONResponse
+import traceback
 
 app = FastAPI(title="GDPR Copilot")
 
@@ -24,5 +26,16 @@ def health():
 
 @app.post("/query")
 def query(q: QueryIn):
-    model = _get_model()
-    return model.predict({"question": q.question})
+    try:
+        model = _get_model()
+        out = model.predict({"question": q.question})
+        return out if isinstance(out, dict) else {"result": out}
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={
+                "error": str(e),
+                "type": e.__class__.__name__,
+                "trace": traceback.format_exc(),
+            },
+        )
