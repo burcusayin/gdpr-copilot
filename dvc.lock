@@ -36,3 +36,35 @@ stages:
       hash: md5
       md5: aed9a7d255a1c16cda26bcfdcd8ec9f6
       size: 248503
+  eval:
+    cmd: python pipelines/eval.py --q data/eval/questions.jsonl --out 
+      metrics.json
+    deps:
+    - path: data/embeddings.parquet
+      hash: md5
+      md5: aed9a7d255a1c16cda26bcfdcd8ec9f6
+      size: 248503
+    - path: data/eval/questions.jsonl
+      hash: md5
+      md5: c47c8b507de64001e95f04c7629cb1cf
+      size: 233
+    - path: pipelines/eval.py
+      hash: md5
+      md5: 060a13e4f53bb4fe64a3252d23d53182
+      size: 2544
+    outs:
+    - path: metrics.json
+      hash: md5
+      md5: 230d5a7ab93ae3fdd183f54dc3edd64a
+      size: 24
+  index:
+    cmd: python pipelines/index.py --emb data/embeddings.parquet
+    deps:
+    - path: data/embeddings.parquet
+      hash: md5
+      md5: aed9a7d255a1c16cda26bcfdcd8ec9f6
+      size: 248503
+    - path: pipelines/index.py
+      hash: md5
+      md5: 19559ba688c80c235860ac273df8ec66
+      size: 1048

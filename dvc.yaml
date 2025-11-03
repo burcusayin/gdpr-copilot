@@ -20,3 +20,8 @@ stages:
     - data/embeddings.parquet
     metrics:
     - metrics.json
+  index:
+    cmd: python pipelines/index.py --emb data/embeddings.parquet
+    deps:
+    - pipelines/index.py
+    - data/embeddings.parquet

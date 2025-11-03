@@ -5,3 +5,4 @@ __pycache__/
 mlruns/
 artifacts/
 .qdrant/
+/metrics.json

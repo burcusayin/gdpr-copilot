@@ -35,15 +35,12 @@ class RagPyFunc(mlflow.pyfunc.PythonModel):
             )
         self._collection_ready = True
 
-    def predict(self, ctx, model_input):
+    def predict(self, context, model_input):
         # accept dict or DataFrame
         q = model_input["question"] if isinstance(model_input, dict) else model_input["question"].iloc[0]
         emb = self._get_embedder()
         qv = emb.encode([q], normalize_embeddings=True)[0].tolist()
-
-        # ensure the collection exists with the right dim before searching
         self._ensure_collection(dim=len(qv))
-
         hits = self.client.search(collection_name=self.collection, query_vector=qv, limit=self.topk)
         texts = [h.payload.get("text","") for h in hits] or [""]
         start = time.time()
