@@ -1,0 +1,61 @@
+name: build-and-smoke
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+jobs:
+  build-and-smoke:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    env:
+      IMAGE_NAME: gdpr-copilot
+      TAG: ci-${{ github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          tags: ${{ env.IMAGE_NAME }}:${{ env.TAG }}
+
+      - name: Run container
+        run: |
+          docker run -d --rm --name app -p 8080:8080 \
+            -e MODEL_URI="models:/rag_pipeline_py311@prod" \
+            -e MLFLOW_TRACKING_URI="${{ secrets.MLFLOW_TRACKING_URI }}" \
+            -e MLFLOW_TRACKING_USERNAME="${{ secrets.MLFLOW_TRACKING_USERNAME }}" \
+            -e MLFLOW_TRACKING_PASSWORD="${{ secrets.MLFLOW_TRACKING_PASSWORD }}" \
+            -e QDRANT_URL="${{ secrets.QDRANT_URL }}" \
+            -e QDRANT_API_KEY="${{ secrets.QDRANT_API_KEY }}" \
+            -e TOKENIZERS_PARALLELISM=false \
+            ${{ env.IMAGE_NAME }}:${{ env.TAG }}
+
+          # wait for boot
+          for i in $(seq 1 40); do
+            curl -sf http://localhost:8080/healthz && break
+            sleep 3
+          done
+
+      - name: Smoke test /query
+        run: |
+          curl -sS -X POST http://localhost:8080/query \
+            -H 'Content-Type: application/json' \
+            -d '{"question":"What are the data processing principles?"}' | tee /tmp/resp.json
+          python - <<'PY'
+          import json, sys
+          j=json.load(open('/tmp/resp.json'))
+          assert 'answer' in j and isinstance(j['answer'], str), "no 'answer' in response"
+          print("Smoke OK:", j['answer'][:120], "...")
+          PY
+
+      - name: Stop container
+        if: always()
+        run: docker stop app
