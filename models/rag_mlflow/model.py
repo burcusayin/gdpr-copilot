@@ -3,13 +3,17 @@ from qdrant_client import QdrantClient
 from qdrant_client.models import Distance, VectorParams
 
 class RagPyFunc(mlflow.pyfunc.PythonModel):
-    def load_context(self, ctx):
+    
+    def load_context(self, context: mlflow.pyfunc.PythonModelContext | None = None, **_):
+        # Lazy init to speed startup
         self.embed = None
         self.embed_name = os.getenv("EMBED_MODEL","sentence-transformers/all-MiniLM-L6-v2")
         self.topk = int(os.getenv("RETRIEVAL_TOPK","8"))
         self.collection = os.getenv("QDRANT_COLLECTION","gdpr_collection")
-        self.client = QdrantClient(url=os.getenv("QDRANT_URL","http://localhost:6333"),
-                                   api_key=os.getenv("QDRANT_API_KEY"))
+        self.client = QdrantClient(
+            url=os.getenv("QDRANT_URL","http://localhost:6333"),
+            api_key=os.getenv("QDRANT_API_KEY")
+        )
         self._collection_ready = False
 
     def _get_embedder(self):
