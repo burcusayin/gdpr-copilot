@@ -1,4 +1,4 @@
-# GDPR Copilot — RAG + MLflow + Qdrant + Docker
+# GDPR Copilot (RAG + MLflow + Qdrant + Docker)
 
 A preliminary app for real-world, production-minded RAG service:
 
@@ -15,8 +15,8 @@ A preliminary app for real-world, production-minded RAG service:
 - [Architecture](#architecture)
 - [Prerequisites](#prerequisites)
 - [Project layout](#project-layout)
-- [Quickstart (local)](#quickstart-local)
-- [Quickstart (cloud demo)](#quickstart-cloud)
+- [Quickstart local](#quickstart-local)
+- [Quickstart cloud](#quickstart-cloud)
 - [Detailed steps](#detailed-steps)
 - [Common commands](#common-commands)
 - [Environment variables](#environment-variables)
@@ -86,7 +86,7 @@ Optional (for cloud):
 
 ---
 
-## Quickstart (local)
+## Quickstart local
 
 ```bash
 # 1) Python env
@@ -113,7 +113,7 @@ curl -s -X POST http://localhost:8080/query -H 'Content-Type: application/json' 
 
 ---
 
-## Quickstart (cloud demo)
+## Quickstart cloud
 
 This runs the API locally while using **Qdrant Cloud** for vectors (and optionally DagsHub for MLflow).
 
@@ -140,6 +140,7 @@ docker compose up -d --force-recreate app
 curl -s http://localhost:8080/healthz
 curl -s -X POST http://localhost:8080/query -H 'Content-Type: application/json' \
   -d '{"question":"What are the data processing principles?"}'
+```
 
 ---
 
