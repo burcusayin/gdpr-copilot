@@ -26,23 +26,42 @@ jobs:
           push: false
           tags: ${{ env.IMAGE_NAME }}:${{ env.TAG }}
 
+      - name: Create .env from secrets
+        run: |
+          cat > .env <<EOF
+          MODEL_URI=models:/rag_pipeline_py311@prod
+          MLFLOW_TRACKING_URI=${{ secrets.MLFLOW_TRACKING_URI }}
+          MLFLOW_TRACKING_USERNAME=${{ secrets.MLFLOW_TRACKING_USERNAME }}
+          MLFLOW_TRACKING_PASSWORD=${{ secrets.MLFLOW_TRACKING_PASSWORD }}
+          QDRANT_URL=${{ secrets.QDRANT_URL }}
+          QDRANT_API_KEY=${{ secrets.QDRANT_API_KEY }}
+          QDRANT_COLLECTION=gdpr_collection
+          TOKENIZERS_PARALLELISM=false
+          EOF
+      - name: Up with compose
+        run: docker compose up -d app
+
       - name: Run container
+        env:
+          MODEL_URI: models:/rag_pipeline_py311@prod
+          MLFLOW_TRACKING_URI: ${{ secrets.MLFLOW_TRACKING_URI }}
+          MLFLOW_TRACKING_USERNAME: ${{ secrets.MLFLOW_TRACKING_USERNAME }}
+          MLFLOW_TRACKING_PASSWORD: ${{ secrets.MLFLOW_TRACKING_PASSWORD }}
+          QDRANT_URL: ${{ secrets.QDRANT_URL }}
+          QDRANT_API_KEY: ${{ secrets.QDRANT_API_KEY }}
+          QDRANT_COLLECTION: gdpr_collection
+          TOKENIZERS_PARALLELISM: "false"
         run: |
           docker run -d --rm --name app -p 8080:8080 \
-            -e MODEL_URI="models:/rag_pipeline_py311@prod" \
-            -e MLFLOW_TRACKING_URI="${{ secrets.MLFLOW_TRACKING_URI }}" \
-            -e MLFLOW_TRACKING_USERNAME="${{ secrets.MLFLOW_TRACKING_USERNAME }}" \
-            -e MLFLOW_TRACKING_PASSWORD="${{ secrets.MLFLOW_TRACKING_PASSWORD }}" \
-            -e QDRANT_URL="${{ secrets.QDRANT_URL }}" \
-            -e QDRANT_API_KEY="${{ secrets.QDRANT_API_KEY }}" \
-            -e TOKENIZERS_PARALLELISM=false \
-            ${{ env.IMAGE_NAME }}:${{ env.TAG }}
-
-          # wait for boot
-          for i in $(seq 1 40); do
-            curl -sf http://localhost:8080/healthz && break
-            sleep 3
-          done
+            -e MODEL_URI \
+            -e MLFLOW_TRACKING_URI \
+            -e MLFLOW_TRACKING_USERNAME \
+            -e MLFLOW_TRACKING_PASSWORD \
+            -e QDRANT_URL \
+            -e QDRANT_API_KEY \
+            -e QDRANT_COLLECTION \
+            -e TOKENIZERS_PARALLELISM \
+            $IMAGE_NAME:$TAG
 
       - name: Smoke test /query
         run: |

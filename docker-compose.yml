@@ -1,35 +1,43 @@
 services:
   qdrant:
     image: qdrant/qdrant:latest
-    ports: ["6333:6333"]
-    volumes: ["./.qdrant:/qdrant/storage"]
+    container_name: gdpr-copilot-qdrant-1
+    ports:
+      - "6333:6333"          # host → qdrant (UI/API)
+    volumes:
+      - ./qdrant:/qdrant/storage
 
   mlflow:
     image: ghcr.io/mlflow/mlflow:latest
-    command: mlflow server --host 0.0.0.0
-      --backend-store-uri sqlite:///mlflow.db
-      --artifacts-destination /artifacts
+    container_name: gdpr-copilot-mlflow-1
+    command: >
+      mlflow server
+      --host 0.0.0.0
+      --port 5000
+      --backend-store-uri sqlite:////mlflow/mlflow.db
       --serve-artifacts
+      --artifacts-destination /artifacts
       --allowed-hosts "mlflow:5000,localhost:*,127.0.0.1:*"
-    ports: ["5001:5000"]
+    ports:
+      - "5001:5000"          # host:5001 → mlflow:5000 (so you can open the UI)
     volumes:
-      - ./mlflow:/mlflow         
-      - ./mlruns:/mlruns
+      - ./mlflow:/mlflow
       - ./artifacts:/artifacts
 
   app:
     build: .
+    container_name: gdpr-copilot-app-1
+    depends_on:
+      - mlflow
+      - qdrant
+    env_file:
+      - .env                 
     environment:
-      - MODEL_URI=${MODEL_URI}
-      - MLFLOW_TRACKING_URI=${MLFLOW_TRACKING_URI}
-      - MLFLOW_TRACKING_USERNAME=${MLFLOW_TRACKING_USERNAME}
-      - MLFLOW_TRACKING_PASSWORD=${MLFLOW_TRACKING_PASSWORD}
+      - MODEL_URI=models:/rag_pipeline_py311@prod
+      - MLFLOW_TRACKING_URI=http://mlflow:5000
       - QDRANT_URL=${QDRANT_URL}
       - QDRANT_API_KEY=${QDRANT_API_KEY}
       - QDRANT_COLLECTION=${QDRANT_COLLECTION:-gdpr_collection}
       - TOKENIZERS_PARALLELISM=${TOKENIZERS_PARALLELISM:-false}
-    volumes:
-      - ${HOME}/.cache/huggingface:/root/.cache/huggingface
-      - ${HOME}/.cache/torch:/root/.cache/torch
-    depends_on: [qdrant, mlflow]
-    ports: ["8080:8080"]
+    ports:
+      - "8080:8080"          # host → app
