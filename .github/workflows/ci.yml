@@ -8,8 +8,14 @@ jobs:
   build-and-smoke:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    permissions:
+      contents: read
+      packages: write
+    env:
+      IMAGE_NAME: gdpr-copilot
+      TAG: ${{ github.sha }}
     steps:
-      - name: Free disk space
+       - name: Free disk space
         uses: jlumbroso/free-disk-space@main
         with:
           tool-cache: true
@@ -21,29 +27,13 @@ jobs:
       - uses: actions/checkout@v4
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-    permissions:
-      contents: read
-      packages: write
-    env:
-      IMAGE_NAME: gdpr-copilot
-      TAG: ci-${{ github.sha }}
-    steps:
-      - uses: actions/checkout@v4
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Build image
+      - name: Build image (with cache)
         uses: docker/build-push-action@v6
         with:
           context: .
           push: false
-          tags: gdpr-copilot:${{ github.sha }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-          load: true          # <-- critical
-          push: false
-          provenance: false
+          tags: ${{ env.IMAGE_NAME }}:${{ env.TAG }}
 
       - name: Create .env from secrets
         run: |
@@ -57,8 +47,42 @@ jobs:
           QDRANT_COLLECTION=gdpr_collection
           TOKENIZERS_PARALLELISM=false
           EOF
+
+      - name: Register model to DagsHub (inside image)
+        env:
+          MLFLOW_TRACKING_URI: ${{ secrets.MLFLOW_TRACKING_URI }}
+          MLFLOW_TRACKING_USERNAME: ${{ secrets.MLFLOW_TRACKING_USERNAME }}
+          MLFLOW_TRACKING_PASSWORD: ${{ secrets.MLFLOW_TRACKING_PASSWORD }}
+        run: |
+          docker run --rm \
+            -e MLFLOW_TRACKING_URI -e MLFLOW_TRACKING_USERNAME -e MLFLOW_TRACKING_PASSWORD \
+            $IMAGE_NAME:$TAG \
+            python scripts/register_and_promote.py
+      
       - name: Up with compose
         run: docker compose up -d app
+
+      - name: Preflight — MLflow alias on DagsHub
+        env:
+          MLFLOW_TRACKING_URI: ${{ secrets.MLFLOW_TRACKING_URI }}
+          MLFLOW_TRACKING_USERNAME: ${{ secrets.MLFLOW_TRACKING_USERNAME }}
+          MLFLOW_TRACKING_PASSWORD: ${{ secrets.MLFLOW_TRACKING_PASSWORD }}
+        run: |
+          set -euxo pipefail
+          RESP=$(curl -sS -u "$MLFLOW_TRACKING_USERNAME:$MLFLOW_TRACKING_PASSWORD" \
+            -H 'Content-Type: application/json' \
+            -d '{"name":"rag_pipeline_py311","alias":"prod"}' \
+            "$MLFLOW_TRACKING_URI/api/2.0/mlflow/model-versions/get-by-alias")
+          echo "$RESP" | grep -q '"name"' || { echo "Alias not found or auth failed"; echo "$RESP"; exit 2; }
+
+      - name: Preflight — Qdrant connectivity
+        env:
+          QDRANT_URL: ${{ secrets.QDRANT_URL }}
+          QDRANT_API_KEY: ${{ secrets.QDRANT_API_KEY }}
+        run: |
+          set -euxo pipefail
+          curl -sS -H "api-key: $QDRANT_API_KEY" "$QDRANT_URL/collections" | tee /tmp/qdrant.json
+          grep -q '"status":"ok"' /tmp/qdrant.json || { echo "Qdrant not reachable"; cat /tmp/qdrant.json; exit 3; }
 
       - name: Run container
         env:
